@@ -1,0 +1,141 @@
+-- https://scriptblox.com/script/ISAGI-Blue-Lock:-Rivals-Dragon-Cannon-56304
+
+local player = game.Players.LocalPlayer
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+
+-- Cria botão Dragon Cannon
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0, 180, 0, 60)
+button.Position = UDim2.new(0.5, -90, 0, 10) -- centralizado no topo
+button.Text = "Dragon Cannon"
+button.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.Font = Enum.Font.SourceSansBold
+button.TextSize = 20
+button.Parent = gui
+
+-- Serviços
+local vim = game:GetService("VirtualInputManager")
+local RunService = game:GetService("RunService")
+
+-- Variável para cooldown
+local onCooldown = false
+
+-- Função para criar rastro no player
+local function createPlayerTrail()
+    local char = player.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    if not hrp:FindFirstChild("Trail") then
+        local att0 = Instance.new("Attachment", hrp)
+        att0.Position = Vector3.new(0, -2, 0)
+        local att1 = Instance.new("Attachment", hrp)
+        att1.Position = Vector3.new(0, 2, 0)
+
+        local trail = Instance.new("Trail")
+        trail.Name = "Trail"
+        trail.Attachment0 = att0
+        trail.Attachment1 = att1
+        trail.Color = ColorSequence.new(Color3.fromRGB(255, 255, 0)) -- amarelo
+        trail.Lifetime = 0.5
+        trail.Transparency = NumberSequence.new(0, 1)
+        trail.Parent = hrp
+    end
+end
+
+-- Aura na bola
+local function createBallAura(ball)
+    if not ball:FindFirstChild("Aura") then
+        local aura = Instance.new("ParticleEmitter")
+        aura.Name = "Aura"
+        aura.Texture = "rbxassetid://243660364" -- partícula brilhante
+        aura.Rate = 10
+        aura.Lifetime = NumberRange.new(0.5)
+        aura.Size = NumberSequence.new(1.5)
+        aura.Color = ColorSequence.new(Color3.fromRGB(255, 255, 0))
+        aura.Transparency = NumberSequence.new(0.3, 1)
+        aura.Speed = NumberRange.new(0)
+        aura.Parent = ball
+    end
+end
+
+-- Rastro na bola quando usar o Dragon Cannon
+local function addBallTrail(ball)
+    if not ball then return end
+    if ball:FindFirstChild("CannonTrail") then
+        ball.CannonTrail:Destroy()
+    end
+
+    local att0 = Instance.new("Attachment", ball)
+    local att1 = Instance.new("Attachment", ball)
+
+    local trail = Instance.new("Trail")
+    trail.Name = "CannonTrail"
+    trail.Attachment0 = att0
+    trail.Attachment1 = att1
+    trail.Color = ColorSequence.new(Color3.fromRGB(255, 255, 0))
+    trail.Lifetime = 0.6
+    trail.Transparency = NumberSequence.new(0, 1)
+    trail.MinLength = 0.1
+    trail.Parent = ball
+
+    -- some depois de 2s
+    task.delay(2, function()
+        if trail then
+            trail:Destroy()
+        end
+        att0:Destroy()
+        att1:Destroy()
+    end)
+end
+
+-- Loop para manter efeitos ativos
+RunService.RenderStepped:Connect(function()
+    createPlayerTrail()
+    local ball = workspace:FindFirstChild("Football") and workspace.Football:FindFirstChild("Hitbox")
+    if ball then
+        createBallAura(ball)
+    end
+end)
+
+-- Botão Dragon Cannon
+button.MouseButton1Click:Connect(function()
+    if onCooldown then return end
+    onCooldown = true
+
+    -- muda cor para vermelho
+    button.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+
+    -- simula clique esquerdo do mouse
+    local mouse = player:GetMouse()
+    local x, y = mouse.X, mouse.Y
+    vim:SendMouseButtonEvent(x, y, 0, true, game, 0)
+    task.wait(0.05)
+    vim:SendMouseButtonEvent(x, y, 0, false, game, 0)
+
+    -- aplica força na bola depois de 0,25s
+    task.wait(0.30)
+    local char = player.Character or player.CharacterAdded:Wait()
+    local hrp = char:WaitForChild("HumanoidRootPart")
+    local ball = workspace:FindFirstChild("Football") and workspace.Football:FindFirstChild("Hitbox")
+    if ball and hrp then
+        local direction = hrp.CFrame.LookVector
+        -- inclinação leve para cima (simula chute realista sem virar Hulk kkk)
+        local kickDirection = (direction + Vector3.new(0, 0.1, 0)).Unit
+        ball.AssemblyLinearVelocity = kickDirection * 350
+        addBallTrail(ball)
+    end
+
+    -- cooldown visual 5 segundos
+    for i = 1, 50 do
+        local r = 255
+        local g = math.floor(50 + math.abs(math.sin(tick()*4)) * 200)
+        button.BackgroundColor3 = Color3.fromRGB(r, g, 0)
+        task.wait(0.1)
+    end
+
+    button.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    onCooldown = false
+end)
